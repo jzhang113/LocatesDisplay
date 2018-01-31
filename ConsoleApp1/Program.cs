@@ -1,4 +1,5 @@
-﻿using HtmlAgilityPack;
+﻿using ConsoleApp1.Models;
+using HtmlAgilityPack;
 using System;
 using System.IO;
 using System.Net;
@@ -23,25 +24,26 @@ namespace ConsoleApp1
                 HtmlNode ticketTable = document.GetElementbyId("TicketTable");
                 HtmlNodeCollection tickets = ticketTable.SelectNodes("tbody/tr");
 
-                foreach (HtmlNode tick in tickets)
+                using (var db = new SADContext())
                 {
-                    HtmlNodeCollection coll = tick.SelectNodes("td");
-                    TicketData data = new TicketData
+                    foreach (HtmlNode tick in tickets)
                     {
-                        ID = Int32.Parse(coll[1].FirstChild.InnerHtml),
-                        OrigCall = DateTime.Parse(coll[2].InnerHtml),
-                        BeginTime = DateTime.Parse(coll[3].InnerHtml),
-                        Street = coll[4].InnerHtml,
-                        City = coll[5].InnerHtml,
-                        County = coll[6].InnerHtml,
-                        State = coll[7].InnerHtml,
-                        District = coll[8].InnerHtml,
-                        Status = coll[9].InnerHtml
-                    };
+                        HtmlNodeCollection coll = tick.SelectNodes("td");
+                        db.OneCallTicket.Add(new OneCallTicket
+                        {
+                            BeginWorkDate = DateTime.Parse(coll[3].InnerHtml),
+                            City = coll[5].InnerHtml,
+                            OriginalCallDate = DateTime.Parse(coll[2].InnerHtml),
+                            StreetAddress = coll[4].InnerHtml,
+                            TicketNumber = coll[1].FirstChild.InnerHtml,
+                            StateAbbreviation = coll[7].InnerHtml,
+                            Status = coll[9].InnerHtml
+                        });
+                    }
+
+                    db.SaveChanges();
                 }
             }).GetAwaiter().GetResult();
-
-            Console.ReadLine();
         }
 
         private async static Task<string> LoginRequest()
