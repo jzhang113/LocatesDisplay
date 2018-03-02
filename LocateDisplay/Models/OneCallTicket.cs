@@ -1,6 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 
-namespace LocatesParser.Models
+namespace LocateDisplay.Models
 {
     public partial class OneCallTicket
     {

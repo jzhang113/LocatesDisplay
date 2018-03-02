@@ -1,0 +1,39 @@
+﻿@model LocateDisplay.Models.TicketViewModel
+
+<h1>View Tickets</h1>
+
+<div>
+    <table class = "table table-striped">
+        <thead>
+            <tr>
+                <th>Ticket Number</th>
+                <th>Ticket Type</th>
+                <th>Status</th>
+                <th>Due Date</th>
+                <th>Due Time</th>
+                <th>Address</th>
+                <th>City</th>
+                <th>Ticket Link</th>
+                <th>Extent of Work</th>
+                <th>Remarks</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (OneCallTicket ticket in Model.TicketList)
+            {
+                <tr class = "header">
+                    <td>@ticket.TicketNumber</td>
+                    <td>@ticket.TicketType</td>
+                    <td>@ticket.Status</td>
+                    <td>@ticket.FinishWorkDate.ToShortDateString()</td>
+                    <td>@ticket.FinishWorkDate.ToLongTimeString()</td>
+                    <td>@ticket.StreetAddress</td>
+                    <td>@ticket.City</td>
+                    <td><a href=@("http://ia.itic.occinc.com/" + ticket.TicketKey)>Link</a></td>
+                    <td>@ticket?.WorkExtent</td>
+                    <td>@ticket?.Remark</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
