@@ -8,8 +8,8 @@ namespace LocateDisplay.Controllers
     {
         public IActionResult Index()
         {
-            var l = LocateModel.GetTickets(DateTime.Today - new TimeSpan(1, 0, 0, 0), DateTime.Today + new TimeSpan(1, 0, 0, 0));
-            return View(l);
+            var tickets = DatabaseModel.GetTicket(DateTime.Today.AddDays(-14));
+            return View(tickets);
         }
 
         public IActionResult About()

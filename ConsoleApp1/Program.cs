@@ -3,6 +3,7 @@ using LocatesParser.Models;
 using System;
 using System.IO;
 using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -14,6 +15,7 @@ namespace LocatesParser
     {
         private static CookieContainer cookies = new CookieContainer();
         private static string siteUrl = "http://www.managetickets.com/mologin/servlet/iSiteLoginSelected";
+        private static readonly int DAYS_PREV = 2;
 
         static void Main(string[] args)
         {
@@ -31,7 +33,7 @@ namespace LocatesParser
 
                 // Load the current active tickets
                 DateTime endDate = DateTime.Today.Add(new TimeSpan(1, 0, 0, 0));
-                DateTime startDate = endDate.Subtract(new TimeSpan(2, 0, 0, 0));
+                DateTime startDate = endDate.Subtract(new TimeSpan(DAYS_PREV, 0, 0, 0));
                 document.LoadHtml(await MakePostRequest("http://www.managetickets.com/morecApp/servlet/ViewTickets", "auditEndDate=" + endDate.ToShortDateString() + "&auditStartDate=" + startDate.ToShortDateString() + "&CurrentDisplay=All&District=IA-9559"));
 
                 // Get the collections of tickets
@@ -76,7 +78,7 @@ namespace LocatesParser
                         }
                         else
                         {
-                            Console.WriteLine("Error: Did not return full html");
+                            Console.WriteLine("Error: Ticket " + coll[1].FirstChild.InnerHtml + " did not return full html");
                         }
 
                         OneCallTicket oneCallEntry = new OneCallTicket

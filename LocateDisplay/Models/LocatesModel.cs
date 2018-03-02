@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace LocateDisplay.Models
 {
-    public class LocateModel
+    public class LocatesModel
     {
         private static CookieContainer cookies = new CookieContainer();
         private static string siteUrl = "http://www.managetickets.com/mologin/servlet/iSiteLoginSelected";
@@ -25,7 +25,7 @@ namespace LocateDisplay.Models
                 HtmlDocument document = new HtmlDocument();
                 document.LoadHtml(await MakePostRequest(siteUrl, "db=mo&sessionID=null&disttrans=n&basetrans=n&trans_id=0&district_code=0&record_id=0&trans_state=&iSiteUserName=ia-uoim&iSitePassword=mechshop"));
 
-                // Have to load this first so that the next GET request succeeds (design pls)
+                // Have to load this first so that the next GET request succeeds
                 HtmlNode linkNode = document.GetElementbyId("linkTC");
                 string link = linkNode.Attributes["href"].Value;
                 link = link.Replace("../..", "http://www.managetickets.com");
