@@ -1,6 +1,7 @@
 ﻿using HtmlAgilityPack;
 using LocatesParser.Models;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -8,33 +9,51 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-
 namespace LocatesParser
 {
-    static class Program
+    class Program
     {
-        private static CookieContainer cookies = new CookieContainer();
+        private static HttpClient client;
+        private static HttpClientHandler handler;
+        private static CookieContainer cookies;
+
         private static string siteUrl = "http://www.managetickets.com/mologin/servlet/iSiteLoginSelected";
         private static readonly int DAYS_PREV = 2;
 
         static void Main(string[] args)
         {
+            cookies = new CookieContainer();
+            handler = new HttpClientHandler { CookieContainer = cookies };
+            client = new HttpClient(handler);
+
             Task.Run(async () =>
             {
                 // Log in to the site
                 HtmlDocument document = new HtmlDocument();
-                document.LoadHtml(await MakePostRequest(siteUrl, "db=mo&sessionID=null&disttrans=n&basetrans=n&trans_id=0&district_code=0&record_id=0&trans_state=&iSiteUserName=ia-uoim&iSitePassword=mechshop"));
+                HttpContent login = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("iSiteUserName", "ia-uoim"),
+                    new KeyValuePair<string, string>("iSitePassword", "mechshop")
+                });
+                document.Load(await MakePostRequest(siteUrl, login));
 
                 // Have to load this first so that the next GET request succeeds (design pls)
                 HtmlNode linkNode = document.GetElementbyId("linkTC");
                 string link = linkNode.Attributes["href"].Value;
                 link = link.Replace("../..", "http://www.managetickets.com");
-                document.LoadHtml(await MakeGetRequest(link));
+                document.Load(await MakeGetRequest(link));
 
                 // Load the current active tickets
                 DateTime endDate = DateTime.Today.Add(new TimeSpan(1, 0, 0, 0));
                 DateTime startDate = endDate.Subtract(new TimeSpan(DAYS_PREV, 0, 0, 0));
-                document.LoadHtml(await MakePostRequest("http://www.managetickets.com/morecApp/servlet/ViewTickets", "auditEndDate=" + endDate.ToShortDateString() + "&auditStartDate=" + startDate.ToShortDateString() + "&CurrentDisplay=All&District=IA-9559"));
+                HttpContent search = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("auditEndDate", endDate.ToShortDateString()),
+                    new KeyValuePair<string, string>("auditStartDate", startDate.ToShortDateString()),
+                    new KeyValuePair<string, string>("CurrentDisplay", "All"),
+                    new KeyValuePair<string, string>("District", "IA-9559")
+                });
+                document.Load(await MakePostRequest("http://www.managetickets.com/morecApp/servlet/ViewTickets", search));
 
                 // Get the collections of tickets
                 HtmlNode ticketTable = document.GetElementbyId("TicketTable");
@@ -54,18 +73,19 @@ namespace LocatesParser
                         detailLink = "http://www.managetickets.com/morecApp/" + detailLink;
 
                         HtmlDocument newPage = new HtmlDocument();
-                        newPage.LoadHtml(await MakeGetRequest(detailLink));
+                        newPage.Load(await MakeGetRequest(detailLink));
                         HtmlNode content = newPage.GetElementbyId("content");
                         HtmlNodeCollection keyNode = content.SelectNodes("//form/input[@name='key']");
                         string key = keyNode[0].GetAttributeValue("value", "");
 
                         HtmlNodeCollection sections = content.SelectNodes("//div[@class='pure-g']");
 
-                        Match duration = Regex.Match(sections[0].InnerHtml, @"<span class=.+>Duration:<\/span>\s*<span class=.+>(\d+) (\w+)<\/span>");
                         Match ticketType = Regex.Match(sections[0].InnerHtml, @"<span class=.+>&nbsp;<\/span>\s*<span class=.+>(.*)<\/span>");
 
-                        DateTime beginTime = DateTime.Parse(coll[3].InnerHtml);
-                        DateTime endTime = GetEndDate(beginTime, duration.Groups[1].Value, duration.Groups[2].Value);
+                        Match excavatorName = Regex.Match(sections[2].InnerHtml, @"<span class=.+>Excavator Name:<\/span>\s*<span class=.+>(.*)<\/span>");
+                        Match onsiteInfo = Regex.Match(sections[2].InnerHtml, @"<span class=.+>Onsite Contact:<\/span>\s*<span class=.+>(.*)<\/span>[\S\s]*<span class=.+>Phone:<\/span>\s*<span class=.+>(.*)<\/span>");
+                        string contactName = onsiteInfo.Groups[1].Value;
+                        string contactPhone = onsiteInfo.Groups[2].Value.Replace("-", "");
 
                         Match extentWork = null;
                         Match remarks = null;
@@ -81,6 +101,8 @@ namespace LocatesParser
                             Console.WriteLine("Error: Ticket " + coll[1].FirstChild.InnerHtml + " did not return full html");
                         }
 
+                        System.Diagnostics.Debug.Assert(contactPhone.Length <= 10);
+
                         OneCallTicket oneCallEntry = new OneCallTicket
                         {
                             TicketNumber = coll[1].FirstChild.InnerHtml.Truncate(20),
@@ -88,16 +110,18 @@ namespace LocatesParser
                             TicketKey = key,
                             Status = coll[9].InnerHtml.Truncate(20),
                             OriginalCallDate = DateTime.Parse(coll[2].InnerHtml),
-                            BeginWorkDate = beginTime,
-                            FinishWorkDate = endTime,
+                            BeginWorkDate = DateTime.Parse(coll[3].InnerHtml),
                             StreetAddress = coll[4].InnerHtml.Truncate(20),
                             City = coll[5].InnerHtml.Truncate(20),
+                            ExcavatorName = excavatorName?.Groups[1].Value.Truncate(20),
+                            OnsightContactPerson = contactName.Truncate(20),
+                            OnsightContactPhone = contactPhone,
                             WorkExtent = extentWork?.Groups[1].Value.Truncate(1000),
                             Remark = remarks?.Groups[1].Value.Truncate(1000)
                         };
 
                         // Check if the ticket is already in the database
-                        OneCallTicket dbTicket = db.Find<OneCallTicket>(oneCallEntry.TicketNumber, oneCallEntry.TicketKey);                       
+                        OneCallTicket dbTicket = db.Find<OneCallTicket>(oneCallEntry.TicketNumber, oneCallEntry.TicketKey);
 
                         // If not, add it to the database
                         if (dbTicket == null)
@@ -160,10 +184,15 @@ namespace LocatesParser
             return endDate;
         }
 
-        private async static Task<string> MakePostRequest(string url, string data)
+        private async static Task<Stream> MakePostRequest(string url, HttpContent content)
         {
+            var result = await client.PostAsync(url, content);
+            result.EnsureSuccessStatusCode();
+
+            return await result.Content.ReadAsStreamAsync();
+            /*
             HttpWebRequest request = WebRequest.Create(url) as HttpWebRequest;
-            
+
             // Save cookies
             request.CookieContainer = cookies;
 
@@ -186,32 +215,15 @@ namespace LocatesParser
             {
                 return reader.ReadToEnd();
             }
+            */
         }
 
-        private async static Task<string> MakeGetRequest(string url)
+        private async static Task<Stream> MakeGetRequest(string url)
         {
-            // Create request
-            HttpWebRequest request = WebRequest.Create(url) as HttpWebRequest;
+            var result = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            result.EnsureSuccessStatusCode();
 
-            // Send cookies with request
-            request.CookieContainer = cookies;
-
-            // Return response
-            using (WebResponse response = await request.GetResponseAsync().ConfigureAwait(false))
-            using (StreamReader reader = new StreamReader(response.GetResponseStream()))
-            {
-                return reader.ReadToEnd();
-            }
-        }
-
-        public static string Truncate(this string value, int maxLength)
-        {
-            if (!String.IsNullOrEmpty(value) && value.Length > maxLength)
-            {
-                return value.Substring(0, maxLength);
-            }
-
-            return value;
+            return await result.Content.ReadAsStreamAsync();
         }
     }
 }

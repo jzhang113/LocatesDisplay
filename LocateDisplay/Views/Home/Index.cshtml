@@ -2,38 +2,84 @@
 
 <h1>View Tickets</h1>
 
-<div>
-    <table class = "table table-striped">
-        <thead>
-            <tr>
-                <th>Ticket Number</th>
-                <th>Ticket Type</th>
-                <th>Status</th>
-                <th>Due Date</th>
-                <th>Due Time</th>
-                <th>Address</th>
-                <th>City</th>
-                <th>Ticket Link</th>
-                <th>Extent of Work</th>
-                <th>Remarks</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (OneCallTicket ticket in Model.TicketList)
+<table class="table table-responsive">
+    <thead>
+        <tr>
+            <th></th>
+            <th>Ticket Number</th>
+            <th>Ticket Type</th>
+            <th>Status</th>
+            <th>Original Call Date</th>
+            <th>Original Call Time</th>
+            <th>Beginning Work Date</th>
+            <th>Beginning Work Time</th>
+            <th>Address</th>
+            <th>City</th>
+            <th>Excavator Name</th>
+            <th>Onsite Contact</th>
+            <th>Contact Phone</th>
+            <th>Ticket Link</th>
+            <th>Extent of Work</th>
+            <th>Remarks</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (OneCallTicket ticket in Model.TicketList)
+    {
+        (string extentFirst, string extentSecond) = ticket.WorkExtent?.SplitAtWord(60) ?? ("", "");
+        (string remarkFirst, string remarkSecond) = ticket.Remark?.SplitAtWord(60) ?? ("", "");
+        bool hideSecondRow = extentSecond == "" && remarkSecond == "";
+        string rowId = "row" + ticket.TicketNumber;
+
+        string phoneNumber = "";
+        if (ticket.OnsightContactPhone != "          ")
+        {
+            phoneNumber = string.Format("{0}-{1}-{2}",
+                                        ticket.OnsightContactPhone.Substring(0, 3),
+                                        ticket.OnsightContactPhone.Substring(3, 3),
+                                        ticket.OnsightContactPhone.Substring(6));
+        }
+
+        <tr data-toggle="collapse" data-target=".@rowId" class="accordian-toggle">
+            @if (hideSecondRow)
             {
-                <tr class = "header">
-                    <td>@ticket.TicketNumber</td>
-                    <td>@ticket.TicketType</td>
-                    <td>@ticket.Status</td>
-                    <td>@ticket.FinishWorkDate.ToShortDateString()</td>
-                    <td>@ticket.FinishWorkDate.ToLongTimeString()</td>
-                    <td>@ticket.StreetAddress</td>
-                    <td>@ticket.City</td>
-                    <td><a href=@("http://ia.itic.occinc.com/" + ticket.TicketKey)>Link</a></td>
-                    <td>@ticket?.WorkExtent</td>
-                    <td>@ticket?.Remark</td>
-                </tr>
+                <td></td>
             }
-        </tbody>
-    </table>
-</div>
+            else
+            {
+                <td>
+                    <span class="glyphicon @rowId collapse"></span>
+                </td>
+            }
+            <td>@ticket.TicketNumber</td>
+            <td>@ticket.TicketType</td>
+            <td>@ticket.Status</td>
+            <td>@ticket.OriginalCallDate.ToShortDateString()</td>
+            <td>@ticket.OriginalCallDate.ToLongTimeString()</td>
+            <td>@ticket.BeginWorkDate.ToShortDateString()</td>
+            <td>@ticket.BeginWorkDate.ToLongTimeString()</td>
+            <td>@ticket.StreetAddress</td>
+            <td>@ticket.City</td>
+            <td>@ticket.ExcavatorName</td>
+            <td>@ticket.OnsightContactPerson</td>
+            <td>@phoneNumber</td>
+            <td><a href=@("http://ia.itic.occinc.com/" + ticket.TicketKey)>Link</a></td>
+            <td width="20%">@extentFirst</td>
+            <td width="20%">@remarkFirst</td>
+        </tr>
+        @if (hideSecondRow)
+        {
+            // empty row for formatting purposes
+            <tr></tr>
+        }
+        else
+        {
+            <tr>
+                <td colspan="14" class="hiddenRow"></td>
+                <td width="20%" class="hiddenRow"><div class="collapse @rowId entry">@extentSecond</div></td>
+                <td width="20%" class="hiddenRow"><div class="collapse @rowId entry">@remarkSecond</div></td>
+            </tr>
+        }
+    }
+    </tbody>
+</table>

@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace LocatesParser.Models
 {
@@ -24,9 +26,6 @@ namespace LocatesParser.Models
 
                 entity.ToTable("OneCallTicket", "dbo");
 
-                entity.HasIndex(e => new { e.BeginWorkDate, e.City, e.FinishWorkDate, e.OriginalCallDate, e.Remark, e.Status, e.StreetAddress, e.TicketKey, e.TicketNumber, e.TicketType, e.WorkExtent })
-                    .HasName("ClusteredColumnStoreIndex-20180302-141020");
-
                 entity.Property(e => e.TicketNumber)
                     .HasMaxLength(20)
                     .IsUnicode(false);
@@ -42,7 +41,15 @@ namespace LocatesParser.Models
                     .HasMaxLength(20)
                     .IsUnicode(false);
 
-                entity.Property(e => e.FinishWorkDate).HasColumnType("datetime2(2)");
+                entity.Property(e => e.ExcavatorName)
+                    .HasMaxLength(20)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.OnsightContactPerson)
+                    .HasMaxLength(20)
+                    .IsUnicode(false);
+
+                entity.Property(e => e.OnsightContactPhone).HasColumnType("char(10)");
 
                 entity.Property(e => e.OriginalCallDate).HasColumnType("datetime2(2)");
 

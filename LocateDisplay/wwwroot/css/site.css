@@ -1,39 +1,60 @@
-﻿body {
+﻿html {
+    width: 100%;
+}
+
+body {
     padding-top: 50px;
     padding-bottom: 20px;
+    width: 100%;
+}
+
+.table {
+    margin: 0 auto;
 }
 
 td {
     padding: 15px;
 }
 
+.hiddenRow {
+    padding: 0 !important;
+    border: 0 !important;
+}
+
+.entry {
+    padding: 0 8px;
+}
+
+table tr:nth-child(4n-3) > td {
+    background-color: #f9f9f9;
+}
+
+.accordian-toggle .glyphicon.collapse {
+    display: block;
+}
+
+.accordian-toggle .glyphicon.collapse:before {
+    content: '\e159';
+}
+
+.accordian-toggle .glyphicon.collapse.in:before {
+    content: '\e160';
+}
+
+.accordian-toggle .glyphicon.collapsing {
+    transition: unset;
+    overflow: unset;
+    display: block;
+}
+
+.accordian-toggle .glyphicon.collapsing:before {
+    content: '\e159';
+}
+
 /* Wrapping element */
 /* Set some basic padding to keep content from hitting the edges */
-.body-content {
-    padding-left: 15px;
-    padding-right: 15px;
-}
-
-/* Carousel */
-.carousel-caption p {
-    font-size: 20px;
-    line-height: 1.4;
-}
-
-/* Make .svg files in the carousel display properly in older browsers */
-.carousel-inner .item img[src$=".svg"] {
+.container {
+    padding-left: 60px;
+    padding-right: 60px;
     width: 100%;
-}
-
-/* QR code generator */
-#qrCode {
-    margin: 15px;
-}
-
-/* Hide/rearrange for smaller screens */
-@media screen and (max-width: 767px) {
-    /* Hide captions */
-    .carousel-caption {
-        display: none;
-    }
 }

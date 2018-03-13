@@ -86,7 +86,6 @@ namespace LocateDisplay.Models
                         Status = coll[9].InnerHtml,
                         OriginalCallDate = DateTime.Parse(coll[2].InnerHtml),
                         BeginWorkDate = beginTime,
-                        FinishWorkDate = endTime,
                         StreetAddress = coll[4].InnerHtml,
                         City = coll[5].InnerHtml,
                         WorkExtent = extentWork?.Groups[1].Value,

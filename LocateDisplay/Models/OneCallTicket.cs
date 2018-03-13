@@ -7,7 +7,9 @@ namespace LocateDisplay.Models
     {
         public DateTime BeginWorkDate { get; set; }
         public string City { get; set; }
-        public DateTime FinishWorkDate { get; set; }
+        public string ExcavatorName { get; set; }
+        public string OnsightContactPerson { get; set; }
+        public string OnsightContactPhone { get; set; }
         public DateTime OriginalCallDate { get; set; }
         public string Remark { get; set; }
         public string Status { get; set; }
