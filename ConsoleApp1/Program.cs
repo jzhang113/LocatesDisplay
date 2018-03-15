@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -18,13 +17,15 @@ namespace LocatesParser
         private static CookieContainer cookies;
 
         private static string siteUrl = "http://www.managetickets.com/mologin/servlet/iSiteLoginSelected";
-        private static readonly int DAYS_PREV = 2;
+        private static readonly DateTime BEGIN_DATE = DateTime.Today.Subtract(new TimeSpan(59, 0, 0, 0));
+        private static readonly int DAYS_PREV = 30;
 
         static void Main(string[] args)
         {
             cookies = new CookieContainer();
             handler = new HttpClientHandler { CookieContainer = cookies };
             client = new HttpClient(handler);
+            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/4.0 (compatible; MSIE 6.0; Windows 5.1;)");
 
             Task.Run(async () =>
             {
@@ -44,7 +45,7 @@ namespace LocatesParser
                 document.Load(await MakeGetRequest(link));
 
                 // Load the current active tickets
-                DateTime endDate = DateTime.Today.Add(new TimeSpan(1, 0, 0, 0));
+                DateTime endDate = BEGIN_DATE.Add(new TimeSpan(1, 0, 0, 0));
                 DateTime startDate = endDate.Subtract(new TimeSpan(DAYS_PREV, 0, 0, 0));
                 HttpContent search = new FormUrlEncodedContent(new[]
                 {
@@ -74,6 +75,7 @@ namespace LocatesParser
 
                         HtmlDocument newPage = new HtmlDocument();
                         newPage.Load(await MakeGetRequest(detailLink));
+
                         HtmlNode content = newPage.GetElementbyId("content");
                         HtmlNodeCollection keyNode = content.SelectNodes("//form/input[@name='key']");
                         string key = keyNode[0].GetAttributeValue("value", "");
@@ -136,6 +138,19 @@ namespace LocatesParser
                                 var entry = db.Entry(oneCallEntry);
                                 entry.Property(e => e.Status).IsModified = true;
                             }
+
+                            // Cleanup null values
+                            if (dbTicket.Remark == null)
+                            {
+                                var entry = db.Entry(oneCallEntry);
+                                entry.Property(e => e.Remark).IsModified = true;
+                            }
+
+                            if (dbTicket.WorkExtent == null)
+                            {
+                                var entry = db.Entry(oneCallEntry);
+                                entry.Property(e => e.WorkExtent).IsModified = true;
+                            }
                         }
                     }
 
@@ -190,32 +205,6 @@ namespace LocatesParser
             result.EnsureSuccessStatusCode();
 
             return await result.Content.ReadAsStreamAsync();
-            /*
-            HttpWebRequest request = WebRequest.Create(url) as HttpWebRequest;
-
-            // Save cookies
-            request.CookieContainer = cookies;
-
-            // Format request
-            request.Method = "POST";
-            request.ContentType = "application/x-www-form-urlencoded";
-
-            byte[] byteArray = Encoding.UTF8.GetBytes(data);
-            request.ContentLength = byteArray.Length;
-
-            // Attach data
-            using (Stream dataStream = await request.GetRequestStreamAsync())
-            {
-                dataStream.Write(byteArray, 0, byteArray.Length);
-            }
-
-            // Return response
-            using (WebResponse response = await request.GetResponseAsync().ConfigureAwait(false))
-            using (StreamReader reader = new StreamReader(response.GetResponseStream()))
-            {
-                return reader.ReadToEnd();
-            }
-            */
         }
 
         private async static Task<Stream> MakeGetRequest(string url)
