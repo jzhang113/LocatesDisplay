@@ -6,12 +6,12 @@ namespace LocateDisplay.Models
 {
     public class DatabaseModel
     {
-        public static TicketViewModel GetTicket(DateTime beginQueryDate, string sortColumn, bool sortAscending)
+        public static TicketViewModel GetTicket(string connectionString, DateTime beginQueryDate, string sortColumn, bool sortDescending)
         {
             TicketViewModel viewModel = new TicketViewModel();
             List<OneCallTicket> list = new List<OneCallTicket>();
 
-            using (var db = new SADContext())
+            using (var db = new SADContext(connectionString))
             {
                 var entries = from entry in db.OneCallTicket
                               where entry.OriginalCallDate > beginQueryDate
@@ -22,13 +22,38 @@ namespace LocateDisplay.Models
                     list.Add(ticket);
                 }
             }
-
-            Func<OneCallTicket, dynamic> keySelector = GetSelector(sortColumn);
-            if (sortAscending)
-                viewModel.TicketList = list.OrderBy(keySelector);
-            else
-                viewModel.TicketList = list.OrderByDescending(keySelector);
             
+            Func<OneCallTicket, dynamic> keySelector = GetSelector(sortColumn);
+            if (sortDescending)
+                viewModel.TicketList = list.OrderByDescending(keySelector);
+            else
+                viewModel.TicketList = list.OrderBy(keySelector);
+
+            viewModel.SortColumn = sortColumn;
+            viewModel.SortDescending = sortDescending;
+            return viewModel;
+        }
+
+        public static TicketViewModel GetTicketById(string connectionString, string id)
+        {
+            TicketViewModel viewModel = new TicketViewModel();
+            List<OneCallTicket> list = new List<OneCallTicket>();
+
+            using (var db = new SADContext(connectionString))
+            {
+                var entries = from entry in db.OneCallTicket
+                              where entry.TicketNumber.Contains(id)
+                              select entry;
+
+                foreach (OneCallTicket ticket in entries)
+                {
+                    list.Add(ticket);
+                }
+            }
+
+            viewModel.TicketList = list;
+            viewModel.SortColumn = "TicketNumber";
+            viewModel.SortDescending = true;
             return viewModel;
         }
 
@@ -38,11 +63,13 @@ namespace LocateDisplay.Models
             {
                 case "City":
                     return x => x.City;
+                case "BeginWorkDate":
+                    return x => x.BeginWorkDate;
                 case "ExcavatorName":
                     return x => x.ExcavatorName;
-                case "OnsightContactPerson":
+                case "OnsiteContactPerson":
                     return x => x.OnsightContactPerson;
-                case "OnsightContactPhone":
+                case "OnsiteContactPhone":
                     return x => x.OnsightContactPhone;
                 case "OriginalCallDate":
                     return x => x.OriginalCallDate;

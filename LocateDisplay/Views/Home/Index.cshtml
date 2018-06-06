@@ -2,84 +2,172 @@
 
 <h1>View Tickets</h1>
 
-<table class="table table-responsive">
+@if (Model.UpdateSuccess)
+{
+    <p>Last updated @Model.LastUpdate.ToHumanReadableString() ago</p>
+}
+else
+{
+    <p>Update failed</p>
+}
+
+<table class="table my-table-hover">
     <thead>
         <tr>
             <th></th>
-            <th>Ticket Number</th>
-            <th>Ticket Type</th>
-            <th>Status</th>
-            <th>Original Call Date</th>
+            <th id="sortTicketNumber">
+                <span class="leftItem">@Html.DisplayNameFor(model => model.TicketList.FirstOrDefault().TicketNumber)</span>
+                <span class="rightItem glyphicon"></span>
+            </th>
+            <th id="sortTicketType">
+                <span class="leftItem">@Html.DisplayNameFor(model => model.TicketList.FirstOrDefault().TicketType)</span>
+                <span class="rightItem glyphicon"></span>
+            </th>
+            <th id="sortStatus">
+                <span class="leftItem">@Html.DisplayNameFor(model => model.TicketList.FirstOrDefault().Status)</span>
+                <span class="rightItem glyphicon"></span>
+            </th>
+            <th id="sortOriginalCallDate">
+                <span class="leftItem">@Html.DisplayNameFor(model => model.TicketList.FirstOrDefault().OriginalCallDate)</span>
+                <span class="rightItem glyphicon"></span>
+            </th>
             <th>Original Call Time</th>
-            <th>Beginning Work Date</th>
+            <th id="sortBeginWorkDate">
+                <span class="leftItem">@Html.DisplayNameFor(model => model.TicketList.FirstOrDefault().BeginWorkDate)</span>
+                <span class="rightItem glyphicon"></span>
+            </th>
             <th>Beginning Work Time</th>
-            <th>Address</th>
-            <th>City</th>
-            <th>Excavator Name</th>
-            <th>Onsite Contact</th>
-            <th>Contact Phone</th>
-            <th>Ticket Link</th>
-            <th>Extent of Work</th>
-            <th>Remarks</th>
+            <th id="sortStreetAddress">
+                <span class="leftItem">@Html.DisplayNameFor(model => model.TicketList.FirstOrDefault().StreetAddress)</span>
+                <span class="rightItem glyphicon"></span>
+            </th>
+            <th id="sortCity">
+                <span class="leftItem">@Html.DisplayNameFor(model => model.TicketList.FirstOrDefault().City)</span>
+                <span class="rightItem glyphicon"></span>
+            </th>
+            <th id="sortExcavatorName">
+                <span class="leftItem">@Html.DisplayNameFor(model => model.TicketList.FirstOrDefault().ExcavatorName)</span>
+                <span class="rightItem glyphicon"></span>
+            </th>
+            <th id="sortOnsightContactPerson">
+                <span class="leftItem">@Html.DisplayNameFor(model => model.TicketList.FirstOrDefault().OnsightContactPerson)</span>
+                <span class="rightItem glyphicon"></span>
+            </th>
+            <th id="sortOnsightContactPhone">
+                <span class="leftItem">@Html.DisplayNameFor(model => model.TicketList.FirstOrDefault().OnsightContactPhone)</span>
+                <span class="rightItem glyphicon"></span>
+            </th>
+            <th id="sortWorkExtent">
+                <span class="leftItem">@Html.DisplayNameFor(model => model.TicketList.FirstOrDefault().WorkExtent)</span>
+                <span class="rightItem glyphicon"></span>
+            </th>
+            <th id="sortRemarks">
+                <span class="leftItem">@Html.DisplayNameFor(model => model.TicketList.FirstOrDefault().Remark)</span>
+                <span class="rightItem glyphicon"></span>
+            </th>
         </tr>
     </thead>
     <tbody>
-    @foreach (OneCallTicket ticket in Model.TicketList)
-    {
-        (string extentFirst, string extentSecond) = ticket.WorkExtent?.SplitAtWord(60) ?? ("", "");
-        (string remarkFirst, string remarkSecond) = ticket.Remark?.SplitAtWord(60) ?? ("", "");
-        bool hideSecondRow = extentSecond == "" && remarkSecond == "";
-        string rowId = "row" + ticket.TicketNumber;
-
-        string phoneNumber = "";
-        if (ticket.OnsightContactPhone != "          ")
+        @foreach (OneCallTicket ticket in Model.TicketList)
         {
-            phoneNumber = string.Format("{0}-{1}-{2}",
-                                        ticket.OnsightContactPhone.Substring(0, 3),
-                                        ticket.OnsightContactPhone.Substring(3, 3),
-                                        ticket.OnsightContactPhone.Substring(6));
-        }
+            (string extentFirst, string extentSecond) = ticket.WorkExtent?.SplitAtWord(60) ?? ("", "");
+            (string remarkFirst, string remarkSecond) = ticket.Remark?.SplitAtWord(60) ?? ("", "");
+            bool hideSecondRow = extentSecond == "" && remarkSecond == "";
 
-        <tr data-toggle="collapse" data-target=".@rowId" class="accordian-toggle">
-            @if (hideSecondRow)
+            string rowId = "row" + ticket.TicketNumber;
+            string phoneNumber = "";
+
+            if (ticket.OnsightContactPhone != "          ")
             {
-                <td></td>
+                phoneNumber = string.Format("{0}-{1}-{2}",
+                                            ticket.OnsightContactPhone.Substring(0, 3),
+                                            ticket.OnsightContactPhone.Substring(3, 3),
+                                            ticket.OnsightContactPhone.Substring(6));
             }
-            else
-            {
+
+            <tr data-toggle="collapse" data-target=".@rowId" class="accordian-toggle">
                 <td>
                     <span class="glyphicon @rowId collapse"></span>
                 </td>
-            }
-            <td>@ticket.TicketNumber</td>
-            <td>@ticket.TicketType</td>
-            <td>@ticket.Status</td>
-            <td>@ticket.OriginalCallDate.ToShortDateString()</td>
-            <td>@ticket.OriginalCallDate.ToLongTimeString()</td>
-            <td>@ticket.BeginWorkDate.ToShortDateString()</td>
-            <td>@ticket.BeginWorkDate.ToLongTimeString()</td>
-            <td>@ticket.StreetAddress</td>
-            <td>@ticket.City</td>
-            <td>@ticket.ExcavatorName</td>
-            <td>@ticket.OnsightContactPerson</td>
-            <td>@phoneNumber</td>
-            <td><a href=@("http://ia.itic.occinc.com/" + ticket.TicketKey)>Link</a></td>
-            <td width="20%">@extentFirst</td>
-            <td width="20%">@remarkFirst</td>
-        </tr>
-        @if (hideSecondRow)
-        {
-            // empty row for formatting purposes
-            <tr></tr>
-        }
-        else
-        {
+                <td class="ticketkey">
+                    <input type="hidden" value="@ticket.TicketKey" />
+                    <a href=@("http://ia.itic.occinc.com/" + ticket.TicketKey)>@ticket.TicketNumber</a>
+                </td>
+                <td>@ticket.TicketType</td>
+
+                @if (ticket.Status == "Clear" || ticket.Status == "Marked")
+                {
+                    <td class="success">@ticket.Status</td>
+                }
+                else if (ticket.Status == "Not Yet Responded")
+                {
+                    <td class="danger">@ticket.Status</td>
+                }
+                else
+                {
+                    <td class="info">@ticket.Status</td>
+                }
+
+                <td>@ticket.OriginalCallDate.ToShortDateString()</td>
+                <td>@ticket.OriginalCallDate.ToShortTimeString()</td>
+                <td>@ticket.BeginWorkDate.ToShortDateString()</td>
+                <td>@ticket.BeginWorkDate.ToShortTimeString()</td>
+                <td>@ticket.StreetAddress</td>
+                <td>@ticket.City</td>
+                <td>@ticket.ExcavatorName</td>
+                <td>@ticket.OnsightContactPerson</td>
+                <td>@phoneNumber</td>
+                <td>@extentFirst</td>
+                <td>@remarkFirst</td>
+            </tr>
+
             <tr>
-                <td colspan="14" class="hiddenRow"></td>
-                <td width="20%" class="hiddenRow"><div class="collapse @rowId entry">@extentSecond</div></td>
-                <td width="20%" class="hiddenRow"><div class="collapse @rowId entry">@remarkSecond</div></td>
+                <td colspan="13" class="hiddenRow"><div class="collapse @rowId"><iframe class="map"></iframe></div></td>
+                <td class="hiddenRow" style="width: 15%"><div class="collapse @rowId entry">@extentSecond</div></td>
+                <td class="hiddenRow" style="width: 15%"><div class="collapse @rowId entry">@remarkSecond</div></td>
             </tr>
         }
-    }
     </tbody>
 </table>
+
+<script>
+    function ready(fn) {
+        if (document.readyState != 'loading') {
+            fn();
+        } else if (document.addEventListener) {
+            document.addEventListener('DOMContentLoaded', fn);
+        } else {
+            document.attachEvent('onreadystatechange', function () {
+                if (document.readyState != 'loading')
+                    fn();
+            });
+        }
+    }
+
+    function attachArrows() {
+        @{
+            string colId = "sort" + Model.SortColumn;
+        }
+
+        var column = document.getElementById("@colId");
+        var span = column.lastElementChild;
+
+        if (span) {
+            if ("@Model.SortDescending" === "False") {
+                span.className += " glyphicon-chevron-up";
+            } else {
+                span.className += " glyphicon-chevron-down";
+            }
+        } else {
+            span = column.lastChild;
+            if ("@Model.SortDescending" === "False") {
+                span.className += " glyphicon-chevron-up";
+            } else {
+                span.className += " glyphicon-chevron-down";
+            }
+        }
+    }
+
+    var windowOnload = window.onload || function () { ready(attachArrows); };
+    window.onload = function () { windowOnload(); };
+</script>

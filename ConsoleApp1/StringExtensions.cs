@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 
 namespace LocatesParser
 {
@@ -12,6 +13,11 @@ namespace LocatesParser
             }
 
             return value;
+        }
+
+        public static string ToTitleCase(this string value)
+        {
+            return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(value.ToLower());
         }
     }
 }

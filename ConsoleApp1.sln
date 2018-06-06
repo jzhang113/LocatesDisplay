@@ -7,8 +7,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LocatesParser", "ConsoleApp
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LocateDisplay", "LocateDisplay\LocateDisplay.csproj", "{9E94AF5A-CA0D-46C9-A08E-C2A90CE174C0}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AngularDisplay", "AngularDisplay\AngularDisplay.csproj", "{AD8B413D-DEEB-420E-B705-84398FEE2EDD}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,10 +21,6 @@ Global
 		{9E94AF5A-CA0D-46C9-A08E-C2A90CE174C0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9E94AF5A-CA0D-46C9-A08E-C2A90CE174C0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9E94AF5A-CA0D-46C9-A08E-C2A90CE174C0}.Release|Any CPU.Build.0 = Release|Any CPU
-		{AD8B413D-DEEB-420E-B705-84398FEE2EDD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{AD8B413D-DEEB-420E-B705-84398FEE2EDD}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{AD8B413D-DEEB-420E-B705-84398FEE2EDD}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{AD8B413D-DEEB-420E-B705-84398FEE2EDD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

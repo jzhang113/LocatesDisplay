@@ -7,13 +7,18 @@ namespace LocateDisplay.Models
     public partial class SADContext : DbContext
     {
         public virtual DbSet<OneCallTicket> OneCallTicket { get; set; }
+        private string _connString;
+
+        public SADContext(string connString)
+        {
+            _connString = connString;
+        }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             if (!optionsBuilder.IsConfigured)
             {
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. See http://go.microsoft.com/fwlink/?LinkId=723263 for guidance on storing connection strings.
-                optionsBuilder.UseSqlServer(@"Server=eccsqldev;Database=SAD;Trusted_Connection=True;");
+                optionsBuilder.UseSqlServer(_connString);
             }
         }
 
@@ -21,7 +26,7 @@ namespace LocateDisplay.Models
         {
             modelBuilder.Entity<OneCallTicket>(entity =>
             {
-                entity.HasKey(e => new { e.TicketNumber, e.TicketKey })
+                entity.HasKey(e => new { e.TicketNumber })
                     .ForSqlServerIsClustered(false);
 
                 entity.ToTable("OneCallTicket", "dbo");

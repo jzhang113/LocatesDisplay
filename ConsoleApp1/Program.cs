@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 
 namespace LocatesParser
 {
@@ -17,11 +18,29 @@ namespace LocatesParser
         private static CookieContainer cookies;
 
         private static string siteUrl = "http://www.managetickets.com/mologin/servlet/iSiteLoginSelected";
-        private static readonly DateTime BEGIN_DATE = DateTime.Today.Subtract(new TimeSpan(59, 0, 0, 0));
-        private static readonly int DAYS_PREV = 30;
+        private static readonly DateTime BEGIN_DATE = DateTime.Today.Subtract(new TimeSpan(0, 0, 0, 0));
+        private static readonly int DAYS_PREV = 7;
 
         static void Main(string[] args)
         {
+#if DEBUG
+            IConfigurationBuilder builder = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("config.Development.json");
+#else
+            IConfigurationBuilder builder = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("config.json");
+#endif
+            string path = Directory.GetCurrentDirectory();
+            Console.WriteLine($"Writing to: {path}");
+            StreamWriter sw = new StreamWriter(path + "/log.txt");
+
+            IConfigurationRoot config = builder.Build();
+            string connString = config["connectionString"];
+            Console.WriteLine(connString);
+            sw.WriteLine(connString);
+
             cookies = new CookieContainer();
             handler = new HttpClientHandler { CookieContainer = cookies };
             client = new HttpClient(handler);
@@ -33,8 +52,8 @@ namespace LocatesParser
                 HtmlDocument document = new HtmlDocument();
                 HttpContent login = new FormUrlEncodedContent(new[]
                 {
-                    new KeyValuePair<string, string>("iSiteUserName", "ia-uoim"),
-                    new KeyValuePair<string, string>("iSitePassword", "mechshop")
+                    new KeyValuePair<string, string>("iSiteUserName", config["username"]),
+                    new KeyValuePair<string, string>("iSitePassword", config["password"])
                 });
                 document.Load(await MakePostRequest(siteUrl, login));
 
@@ -63,102 +82,116 @@ namespace LocatesParser
                 // Quit processing if the search failed
                 if (tickets == null)
                     return;
+                
+                Console.WriteLine($"{tickets.Count} tickets found");
+                sw.WriteLine($"{tickets.Count} tickets found");
+                int processed = 0;
 
                 // Get the elements from each ticket
-                using (var db = new SADContext())
+                using (var db = new SADContext(connString))
                 {
                     foreach (HtmlNode tick in tickets)
                     {
                         HtmlNodeCollection coll = tick.SelectNodes("td");
+
                         string detailLink = coll[1].FirstChild.GetAttributeValue("href", "");
                         detailLink = "http://www.managetickets.com/morecApp/" + detailLink;
+                        string ticketNumber = coll[1].FirstChild.InnerHtml.Truncate(20);
+                        string status = coll[9].InnerHtml.Truncate(50).ToTitleCase();
 
-                        HtmlDocument newPage = new HtmlDocument();
-                        newPage.Load(await MakeGetRequest(detailLink));
-
-                        HtmlNode content = newPage.GetElementbyId("content");
-                        HtmlNodeCollection keyNode = content.SelectNodes("//form/input[@name='key']");
-                        string key = keyNode[0].GetAttributeValue("value", "");
-
-                        HtmlNodeCollection sections = content.SelectNodes("//div[@class='pure-g']");
-
-                        Match ticketType = Regex.Match(sections[0].InnerHtml, @"<span class=.+>&nbsp;<\/span>\s*<span class=.+>(.*)<\/span>");
-
-                        Match excavatorName = Regex.Match(sections[2].InnerHtml, @"<span class=.+>Excavator Name:<\/span>\s*<span class=.+>(.*)<\/span>");
-                        Match onsiteInfo = Regex.Match(sections[2].InnerHtml, @"<span class=.+>Onsite Contact:<\/span>\s*<span class=.+>(.*)<\/span>[\S\s]*<span class=.+>Phone:<\/span>\s*<span class=.+>(.*)<\/span>");
-                        string contactName = onsiteInfo.Groups[1].Value;
-                        string contactPhone = onsiteInfo.Groups[2].Value.Replace("-", "");
-
-                        Match extentWork = null;
-                        Match remarks = null;
-
-                        // This section might not get found
-                        if (sections.Count > 4)
-                        {
-                            extentWork = Regex.Match(sections[4].InnerHtml, @"<td class=.+>.*<\/td>\s*<td class=.+>([\S\s]*)<\/span><\/td>");
-                            remarks = Regex.Match(sections[4].InnerHtml, @"<span class=.+>Remarks:<\/span>\s*<span class=.+>(.*)<\/span>");
-                        }
-                        else
-                        {
-                            Console.WriteLine("Error: Ticket " + coll[1].FirstChild.InnerHtml + " did not return full html");
-                        }
-
-                        System.Diagnostics.Debug.Assert(contactPhone.Length <= 10);
-
-                        OneCallTicket oneCallEntry = new OneCallTicket
-                        {
-                            TicketNumber = coll[1].FirstChild.InnerHtml.Truncate(20),
-                            TicketType = ticketType.Groups[1].Value.Truncate(20),
-                            TicketKey = key,
-                            Status = coll[9].InnerHtml.Truncate(20),
-                            OriginalCallDate = DateTime.Parse(coll[2].InnerHtml),
-                            BeginWorkDate = DateTime.Parse(coll[3].InnerHtml),
-                            StreetAddress = coll[4].InnerHtml.Truncate(20),
-                            City = coll[5].InnerHtml.Truncate(20),
-                            ExcavatorName = excavatorName?.Groups[1].Value.Truncate(20),
-                            OnsightContactPerson = contactName.Truncate(20),
-                            OnsightContactPhone = contactPhone,
-                            WorkExtent = extentWork?.Groups[1].Value.Truncate(1000),
-                            Remark = remarks?.Groups[1].Value.Truncate(1000)
-                        };
+                        Console.WriteLine($"processing ticket {++processed}: {ticketNumber}");
+                        sw.Write($"processing ticket {processed}: {ticketNumber} ");
 
                         // Check if the ticket is already in the database
-                        OneCallTicket dbTicket = db.Find<OneCallTicket>(oneCallEntry.TicketNumber, oneCallEntry.TicketKey);
+                        OneCallTicket dbTicket = db.Find<OneCallTicket>(ticketNumber);
 
                         // If not, add it to the database
                         if (dbTicket == null)
                         {
+                            sw.WriteLine("added");
+                            OneCallTicket oneCallEntry = await ParsePage(coll, detailLink, ticketNumber, status);
                             db.Add(oneCallEntry);
                         }
                         else
                         {
-                            // Otherwise, update the entry if the status has changed
-                            if (dbTicket.Status != oneCallEntry.Status)
+                            // update the status if it is different
+                            if (dbTicket.Status != status)
                             {
+                                sw.WriteLine("updated");
+                                OneCallTicket oneCallEntry = await ParsePage(coll, detailLink, ticketNumber, status);
+
                                 var entry = db.Entry(oneCallEntry);
                                 entry.Property(e => e.Status).IsModified = true;
                             }
-
-                            // Cleanup null values
-                            if (dbTicket.Remark == null)
+                            else
                             {
-                                var entry = db.Entry(oneCallEntry);
-                                entry.Property(e => e.Remark).IsModified = true;
-                            }
-
-                            if (dbTicket.WorkExtent == null)
-                            {
-                                var entry = db.Entry(oneCallEntry);
-                                entry.Property(e => e.WorkExtent).IsModified = true;
+                                sw.WriteLine("skipped");
                             }
                         }
                     }
 
-
                     int updateCount = db.SaveChanges();
-                    Console.WriteLine("successfully updated " + updateCount + " records");
+                    Console.WriteLine($"successfully updated {updateCount} records");
+                    sw.WriteLine($"successfully updated {updateCount} records");
                 }
+
+                sw.Flush();
+                sw.Close();
             }).GetAwaiter().GetResult();
+        }
+
+        private static async Task<OneCallTicket> ParsePage(HtmlNodeCollection coll, string detailLink, string ticketNumber, string status)
+        {
+            HtmlDocument newPage = new HtmlDocument();
+            newPage.Load(await MakeGetRequest(detailLink));
+
+            HtmlNode content = newPage.GetElementbyId("content");
+            HtmlNodeCollection keyNode = content.SelectNodes("//form/input[@name='key']");
+            string key = keyNode[0].GetAttributeValue("value", "");
+
+            HtmlNodeCollection sections = content.SelectNodes("//div[@class='pure-g']");
+
+            Match ticketType = Regex.Match(sections[0].InnerHtml, @"<span class=.+>&nbsp;<\/span>\s*<span class=.+>(.*)<\/span>");
+
+            Match excavatorName = Regex.Match(sections[2].InnerHtml, @"<span class=.+>Excavator Name:<\/span>\s*<span class=.+>(.*)<\/span>");
+            Match onsiteInfo = Regex.Match(sections[2].InnerHtml, @"<span class=.+>Onsite Contact:<\/span>\s*<span class=.+>(.*)<\/span>[\S\s]*<span class=.+>Phone:<\/span>\s*<span class=.+>(.*)<\/span>");
+            string contactName = onsiteInfo.Groups[1].Value;
+            string contactPhone = onsiteInfo.Groups[2].Value.Replace("-", "");
+
+            Match extentWork = null;
+            Match remarks = null;
+
+            // This section might not get found
+            if (sections.Count > 4)
+            {
+                extentWork = Regex.Match(sections[4].InnerHtml, @"<td class=.+>.*<\/td>\s*<td class=.+>([\S\s]*)<\/span><\/td>");
+                remarks = Regex.Match(sections[4].InnerHtml, @"<span class=.+>Remarks:<\/span>\s*<span class=.+>(.*)<\/span>");
+            }
+            else
+            {
+                Console.WriteLine($"Error: Ticket {ticketNumber} did not return full html");
+            }
+
+            System.Diagnostics.Debug.Assert(contactPhone.Length <= 10);
+
+            OneCallTicket oneCallEntry = new OneCallTicket
+            {
+                TicketNumber = ticketNumber,
+                TicketType = ticketType.Groups[1].Value.Truncate(20).ToTitleCase(),
+                TicketKey = key,
+                Status = status,
+                OriginalCallDate = DateTime.Parse(coll[2].InnerHtml),
+                BeginWorkDate = DateTime.Parse(coll[3].InnerHtml),
+                StreetAddress = coll[4].InnerHtml.Truncate(50).ToTitleCase(),
+                City = coll[5].InnerHtml.Truncate(20).ToTitleCase(),
+                ExcavatorName = excavatorName?.Groups[1].Value.Truncate(20).ToTitleCase(),
+                OnsightContactPerson = contactName.Truncate(20).ToTitleCase(),
+                OnsightContactPhone = contactPhone,
+                WorkExtent = extentWork?.Groups[1].Value.Truncate(1000).ToTitleCase(),
+                Remark = remarks?.Groups[1].Value.Truncate(1000).ToTitleCase()
+            };
+
+            return oneCallEntry;
         }
 
         private static DateTime GetEndDate(DateTime beginDate, string timeValue, string timeUnits)
